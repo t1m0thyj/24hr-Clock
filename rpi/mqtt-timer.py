@@ -1,4 +1,3 @@
-import json
 import math
 import os
 import sys
@@ -25,7 +24,7 @@ class Timer:
         ("X.X", "..X", "X..", "..X", "..X", "..X", "X.X", "..X", "X.X", "..X"),
         ("XXX", "..X", "XXX", "XXX", "..X", "XXX", "XXX", "..X", "XXX", "XXX")
     )
-    next_alarm_time = datetime.fromtimestamp(0)
+    next_alarm_time = datetime.utcfromtimestamp(0)
 
     @staticmethod
     def draw_digit(x, y, number, brightness):
@@ -41,7 +40,7 @@ class Timer:
             sphd.rotate(180)
 
         while True:
-            delta_seconds = int((Timer.next_alarm_time - datetime.now()).total_seconds())
+            delta_seconds = int((Timer.next_alarm_time - datetime.utcnow()).total_seconds())
             current_time = None
             if 0 <= delta_seconds <= 43200:
                 delta_minutes = math.ceil(delta_seconds / 60)
@@ -75,21 +74,11 @@ def on_connect(client, userdata, flags, rc):
 def on_message(client, userdata, msg):
     print(f"{msg.topic} {msg.payload}")
     if msg.topic == "pi/next-alarm-time":
-        Timer.next_alarm_time = datetime.fromtimestamp(int(msg.payload) / 1000)
-        with open("localStorage.json", 'r+') as fileobj:
-            data = json.load(fileobj)
-            data["nextAlarmTime"] = Timer.next_alarm_time.timestamp()
-            fileobj.seek(0)
-            json.dump(data, fileobj, indent=4)
-            fileobj.truncate()
+        Timer.next_alarm_time = datetime.utcfromtimestamp(int(msg.payload) / 1000)
 
 
 def main():
-    if os.path.isfile("localStorage.json"):
-        with open("localStorage.json", 'r') as fileobj:
-            Timer.next_alarm_time = datetime.fromtimestamp(json.load(fileobj)["nextAlarmTime"])
     threading.Thread(target=Timer.run).start()
-
     client = mqtt.Client(client_id=os.uname()[1], clean_session=True)
     client.on_connect = on_connect
     client.on_message = on_message
